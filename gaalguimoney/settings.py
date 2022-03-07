@@ -107,9 +107,9 @@ DATABASES = {
     } 
 }'''
 
-db_from_env = dj_database_url.config(conn_max_age=600)
-DATABASES['default'] = dj_database_url.config(default='postgres://wfomubydvzbmxr:5f22f50287594b463d43c2285311883cc03e64ad83d5aa081659c6b209f052b3@ec2-3-228-236-221.compute-1.amazonaws.com:5432/d34ljmhq80llqb')
-DATABASES['default'].update(db_from_env)
+#db_from_env = dj_database_url.config(conn_max_age=600)
+#DATABASES['default'] = dj_database_url.config(default='postgres://wfomubydvzbmxr:5f22f50287594b463d43c2285311883cc03e64ad83d5aa081659c6b209f052b3@ec2-3-228-236-221.compute-1.amazonaws.com:5432/d34ljmhq80llqb')
+#DATABASES['default'].update(db_from_env)
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 CORS_ORIGIN_ALLOW_ALL = True

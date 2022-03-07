@@ -10,13 +10,14 @@ from .models import User
 from .notification import EnvoiDirectNotif,EnvoiViaCodeNotif ,PayementEgaalgui,CodePayementEGaalgui,notifpayement
 from rest_framework import filters
 #import requests
-import decimal
+from decimal import *
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 #from .payement import foo
 from rest_framework_simplejwt.views import TokenObtainPairView
 #from celery import shared_task
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 
 
  
@@ -291,7 +292,7 @@ class VerificationPhonePourPayement(APIView):
 	def post(self,request):
 		data=request.data
 		phone=data['phone']
-		somme=decimal.Decimal(data['total'])
+		somme=Decimal(data['total'])
 		client=User.objects.get(phone=phone,active=True)
 		if client is not None:
 			if client.solde>=somme:
@@ -306,26 +307,36 @@ class Payementgaalgui(APIView):
 	permission_classes = [permissions.AllowAny]
 	def post(self,request):
 		data=request.data
-		somme=decimal.Decimal(data['total'])
-		phone=data['phonegaalgui']
-		code=int(data['code'])
-		livraison=decimal.Decimal(data['livraison'])
-		commission=decimal.Decimal(data['commission'])
-		id=data['id']
+		code=int(request.data.get('code'))
+		id=request.data.get('id')
 		verif=PhoneVerificationCode.objects.get(id=id)
 		if verif.code==code:
-			verif.active=False
-			verif.save()
-			client=User.objects.get(phone=phone,active=True)
-			if client.solde>=(somme+livraison):
-				client.solde-=(somme+livraison)
-				client.save()
-				admina=User.objects.get(phone='+79649642176')
-				admina.solde+=(livraison+commission)
-				admina.save()
-				PayementGaalgui.objects.create(user=client,livraison=livraison)
-				#PayementEgaalgui(client,somme)
-				return Response({'message':'payement reussi'})
+			phone=request.data.get('phone')
+			user=User.objects.get(phone=phone,active=True)
+			getcontext().prec=2
+			to=request.data.get('total')
+			total=Decimal(to)
+			co=request.data.get('commission')
+			commission=Decimal(co)
+			li=request.data.get('livraison')
+			livraison=Decimal(li)
+			serializer=PayementGaalguiSerializer(data=data)
+			if serializer.is_valid():
+				serializer.save(user=user,active=False,total=total,commission=commission,livraison=livraison)
+				pay_id=serializer.data['id']
+				pay=PayementGaalgui.objects.get(id=pay_id)
+				if user.solde>=pay.total:
+					user.solde-=pay.total
+					user.save()
+					admina=User.objects.get(phone='+79649642176')
+					admina.solde+=(pay.livraison+pay.commission)
+					admina.save()
+					pay.active=True
+					pay.save()
+					return Response({'payement':'payement succes'})
+		    #return Response(serializer.errors)
+
+
 
 
 #Annulation d une commande GaalguiShop

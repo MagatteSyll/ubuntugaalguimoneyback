@@ -122,8 +122,6 @@ class ActionStaffSerializer(serializers.ModelSerializer):
 
 		
 
-
-
 class CompteProfessionnelSerializer(serializers.ModelSerializer):
 	user=serializers.SerializerMethodField()
 	adress=serializers.SerializerMethodField()
@@ -135,6 +133,20 @@ class CompteProfessionnelSerializer(serializers.ModelSerializer):
 
 	def get_adress(self,obj):
 		return RegionSerializer(obj.adress).data
+
+class PayementGaalguiSerializer(serializers.ModelSerializer):
+	user=serializers.SerializerMethodField()
+	livraison=serializers.ReadOnlyField()
+	commission=serializers.ReadOnlyField()
+	class Meta:
+		model=PayementGaalgui
+		fields='__all__'
+
+	def get_user(self,obj):
+		return UserSerializer(obj.user).data
+
+
+
 
 	
 		

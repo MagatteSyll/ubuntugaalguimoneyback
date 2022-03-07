@@ -165,7 +165,12 @@ class PhoneVerificationCode(models.Model):
 
 class PayementGaalgui(models.Model):
 	user=models.ForeignKey(User,on_delete=models.PROTECT)
-	livraison=models.PositiveIntegerField()
+	livraison=models.DecimalField(default=0, max_digits=19, decimal_places=2)
+	commission=models.DecimalField(default=0, max_digits=19, decimal_places=2)
+	total=models.DecimalField(default=0, max_digits=19, decimal_places=2)
+	created=models.DateTimeField(auto_now_add=True)
+	active=models.BooleanField(default=True)
+
 
 	
 	
