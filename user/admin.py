@@ -4,8 +4,9 @@ from .models import*
 
 
 
+
 class UserAdmin(admin.ModelAdmin):
-	list_display=['prenom', 'nom', 'phone','solde', 'active', 'professionnel', 'business', 'is_staff', 'bureaucrate',]
+	list_display=['prenom', 'nom', 'phone','solde', 'active', 'professionnel', 'business', 'is_staff', 'bureaucrate','manager']
 	search_fields=['prenom','nom', 'phone']
 	class Meta:
 		model=User
@@ -24,6 +25,11 @@ class DepotAdmin(admin.ModelAdmin):
 	class Meta:
 		model=Depot
 
+class VerificationTransactionAdmin(admin.ModelAdmin):
+	list_display=['user','id']
+	class Meta:
+		model=VerificationTransaction
+
 class RetraitAdmin(admin.ModelAdmin):
 	list_display=['beneficiaire','somme',]
 	list_display_links =['beneficiaire']
@@ -32,7 +38,7 @@ class RetraitAdmin(admin.ModelAdmin):
 		model=Retrait
 
 class ViaCodeAdmin(admin.ModelAdmin):
-	list_display=['Nom_complet_du_receveur', 'somme','code']
+	list_display=['Nom_complet_du_receveur', 'somme','code','active']
 	search_fields=['Nom_complet_du_receveur','code']
 	class Meta:
 		model=ViaCode
@@ -114,6 +120,8 @@ admin.site.register(PhoneConfirmation,PhoneConfirmationInscriptionAdmin)
 admin.site.register(NotificationStaff,NotificationStaffAdmin)
 admin.site.register(CompteProfessionnel,CompteProfessionnelAdmin)
 admin.site.register(Region,RegionAdmin)
+admin.site.register(VerificationTransaction,VerificationTransactionAdmin)
+admin.site.register(TendancePub)
 
 
 	

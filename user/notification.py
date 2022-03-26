@@ -1,4 +1,4 @@
-from .models import Messages
+from .models import Messages,NotificationAdmina
 import json
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
@@ -34,18 +34,21 @@ def RetraitNotif(beneficiaire,somme):
     Messages.objects.create(user=beneficiaire,message=message,nature_transaction='retrait',montant=somme)
     #notif(beneficiaire,message)
 
-def EnvoiDirectNotif(envoyeur,receveur,somme,frais):
-    messageSend="Envoi de " + " " + str(somme) + " " +  " francs a "+ " " + receveur.prenom + " " +  receveur.nom + " " + ",solde actuel:"+ " " + str(envoyeur.solde)+" "+"CFA"
+def EnvoiDirectNotif(envoyeur,receveur,somme,frais,admina):
+    messageSend="Envoi de " + " " + str(somme) + " " +  " CFA a "+ " " + receveur.prenom + " " +  receveur.nom + " " + ",solde actuel:"+ " " + str(envoyeur.solde)+" "+"CFA"
     messageGet=envoyeur.prenom + " " + envoyeur.nom + " " + "vous a envoyé" + " "  + str(somme) + " " +  " francs ,solde actuel:"+ " " +  str(receveur.solde)+" "+"CFA"
     Messages.objects.create(user=receveur,message=messageGet,nature_transaction='reception',montant=somme)
     Messages.objects.create(user=envoyeur,message=messageSend,nature_transaction='envoi direct',montant=somme,
         commission=frais)
+    NotificationAdmina.objects.create(user=admina,somme=frais,nature='envoi direct')
+    #notif(beneficiaire,messaget)
 
 
-def EnvoiViaCodeNotif(envoyeur,somme,code,frais,receveur):
+def EnvoiViaCodeNotif(envoyeur,somme,code,frais,receveur,admina):
     message="Envoi de " + " " + str(somme) +" "+ " francs par code "+ " " +str(code)+ " " +",solde actuel:"+ " "+ str(envoyeur.solde)+" "+"CFA"
     Messages.objects.create(user=envoyeur,message=message,nature_transaction='envoi via code',montant=somme,
         code=code,commission=frais,beneficiaire=receveur)
+    NotificationAdmina.objects.create(user=admina,somme=frais,nature="envoi via code")
 
 
 def CodePayementEGaalgui(client,code):
@@ -54,9 +57,19 @@ def CodePayementEGaalgui(client,code):
     notif(client,message)
 
 def PayementEgaalgui(client,somme):
-    message="Achat a  Gaalgui de " + " " + str(somme) +" "+ " ,solde actuel:"+ " "+ str(client.solde)+" "+"CFA"
+    message="Achat a  GaalguiShop de " + " " + str(somme) +" "+ " ,solde actuel:"+ " "+ str(client.solde)+" "+"CFA"
     Messages.objects.create(user=client,message=message,nature_transaction='payement')
     notif(client,message)
+
+def AnnulationCommandeGaalguiShopNotif(client,somme,nom):
+    message='Annulation de la commande  '+" "+ nom +" "+ "sur GaalguiShop + "+ " "+ str(somme)+ " "+ "solde actuel"+ " "+ str(client.solde)
+    Messages.objects.create(user=client,message=message,nature_transaction="annulation commande")
+    notif(client,message)
+
+def ActivationClientNotif(client):
+    message="Votre compte a ete active avec succes,bienvenu dans la famille GaalguiMoney!"
+    Messages.objects.create(user=client,message=message,nature_transaction="activation compte")
+   # notif(client,message)
 
 
 

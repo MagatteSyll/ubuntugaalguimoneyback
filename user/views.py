@@ -14,7 +14,7 @@ from decimal import *
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 #from .payement import foo
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView,TokenRefreshView
 #from celery import shared_task
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
@@ -42,6 +42,10 @@ def index(request):
 class MyTokenObtainPairView(TokenObtainPairView):
 	serializer_class = MyTokenObtainPairSerializer
 
+class MyTokenRefreshPairView(TokenRefreshView):
+	serializer_class=MyTokenObtainPairSerializer
+
+
 
 
 #Verifiation du numero avant inscription
@@ -49,15 +53,17 @@ class ValidNumber(APIView):
 	permission_classes = [permissions.AllowAny]
 	def post(self,request):
 		data=request.data
-		phone=data['phone']
-		try:
-			user=User.objects.get(phone=phone)
-		except User.DoesNotExist:
-			code=randint(10000,99999)
-			phoneconfir=PhoneConfirmation.objects.create(phone=phone,code=code)
-			id=phoneconfir.id
-			#code telephone
-			return Response({'id':id})
+		id=data['id']
+		user=User.objects.get(id=id)
+		code_id=data['code_id']
+		code=int(data['code'])
+		verif=PhoneVerificationCode.objects.get(id=code_id,active=True)
+		if verif.code==code:
+			user.active=True
+			user.save()
+			verif.active=False
+			verif.save()
+			return Response({'succes':'registration'})
 
 	
 
@@ -66,15 +72,22 @@ class RegistrationView(APIView):
 	permission_classes = [permissions.AllowAny]
 	def post(self, request):
 		data=request.data
-		id=data['id']
-		code=int(data['code'])
-		verif=PhoneConfirmation.objects.get(id=id)
-		if verif.code==code:
-			serializer =UserSerializer(data=data)
-			if serializer.is_valid():
-				user=serializer.save()
-				return Response({'message':'utilisateur bien cree'})
-			return Response(serializer.errors)
+		serializer =UserSerializer(data=data)
+		if serializer.is_valid():
+			user=serializer.save(active=False,document_verif=False)
+			code=randint(100000,999999)
+			verif=PhoneVerificationCode.objects.create(user=user,code=code,active=True)
+			#Envoi de code au numero
+			return Response({'id':user.id,'code_id':verif.id,'prenom':user.prenom,'nom':user.nom})
+		#return Response(serializer.errors)
+
+class GetNewUser(APIView):
+	permission_classes=[permissions.AllowAny]
+	def post(self,request):
+		id=request.data.get('id')
+		user=User.objects.get(id=id,active=False)
+		serializer=UserSerializer(user)
+		return Response(serializer.data)
 
 
 
@@ -83,26 +96,36 @@ class ResetVerification(APIView):
 	permission_classes = [permissions.AllowAny]
 	def post(self,request):
 		phone=request.data['phone']
-		client=User.objects.get(phone=phone,active=True)
+		client=User.objects.get(phone=phone,active=True,document_verif=True,is_staff=False)
 		if client is not None:
-			code=randint(10000,99999)
+			code=randint(100000,999999)
 			verif=PhoneVerificationCode.objects.create(user=client,code=code,active=True)
 			id=verif.id
 			#SMS send a phone
 			return Response({'id':id})
 
-#Confiramtion du telephone lors du reset password
-class VerificationCodeReset(APIView):
-	permission_classes = [permissions.AllowAny]
+#Verification de l activite du code
+class VerificationIdReset(APIView):
+	permission_classes=[permissions.AllowAny]
 	def post(self,request):
-		data=request.data
-		code=int(data['code'])
-		id=data['id']
+		id=request.data.get('id')
 		verif=PhoneVerificationCode.objects.get(id=id)
-		if verif.code==code:
-			return Response({'message':'verification faite'})
-			
+		if verif.active==True:
+			return Response(True)
+		return Response(False)
 
+#Verification du code
+class CodeReset(APIView):
+	permission_classes=[permissions.AllowAny]
+	def post(self,request):
+		id=request.data.get('id')
+		code=int(request.data.get('code'))
+		verif=PhoneVerificationCode.objects.get(id=id,active=True)
+		if verif.code==code:
+			return Response({'succes':'confirmation phone'})
+
+
+#Changement du mot de passe
 class ResetPassword(ModelViewSet):
 	permission_classes = [permissions.AllowAny]
 	queryset = User.objects.filter(active=True)
@@ -110,31 +133,23 @@ class ResetPassword(ModelViewSet):
 	@action(methods=["put"], detail=False, url_path='reseter')
 	def modif_password(self,request,*args,**kwargs):
 		data=request.data
-		phone=data['phone']
-		password=data['password']
-		user=User.objects.get(phone=phone)
-		user.set_password(password)
-		#serializer.save(password=user.password)
-		user.save()
-		return Response({'message':'donnee bien modifiee'})
+		id=data['id']
+		verif=PhoneVerificationCode.objects.get(id=id,active=True)
+		if verif is not None:
+			password=data['password']
+			user=verif.user
+			user.set_password(password)
+			user.save()
+			verif.active=False
+			verif.save()
+			return Response({'message':'donnee bien modifiee'})
 
-class BlacklistTokenUpdateView(APIView):
-	permission_classes = [permissions.AllowAny]
-	authentication_classes = ()
-	def post(self, request):
-		try:
-			refresh_token = request.data["refresh_token"]
-			token = RefreshToken(refresh_token)
-			token.blacklist()
-			return Response({'message':'deconnexion '})
-		except Exception as e:
-			return Response({'message':'erreur'})
 	
 
 class Authent(APIView):
 	permission_classes = [permissions.AllowAny]
 	def get(self,request):
-		if request.user.is_authenticated:
+		if self.request.user.is_authenticated: 
 			return Response(True)
 		else:
 			return Response(False)
@@ -143,53 +158,78 @@ class Authent(APIView):
 class GetUser(APIView):
 	permission_classes = [permissions.AllowAny]
 	def get(self,request):
-		serializer=UserSerializer(request.user)
-		return Response(serializer.data)
+		if request.user.is_authenticated:
+			serializer=UserSerializer(request.user)
+			return Response(serializer.data)
+		return Response(False)
 		
 #Verification de l existence du beneficiaire lors de l envoi
 class VerificationCredentialsEnvoi(APIView):
 	def post(self,request):
 		envoyeur=request.user
-		if envoyeur.active==True:
+		if envoyeur.active==True and envoyeur.document_verif==True:
 			data=request.data
 			phone_receveur=data['phone']
-			somme=decimal.Decimal(data['somme'])
-			frais=somme/decimal.Decimal(100)
-			vraifrai=round(frais,2)
-			debit=somme+vraifrai
+			getcontext().prec=2
+			somme=Decimal(data['somme'])
+			frais=somme/Decimal(100)
+			debit=somme+frais
 			if phone_receveur!=envoyeur.phone:
 				if envoyeur.solde>=debit:
-					receveur=User.objects.get(phone=phone_receveur,active=True)
+					receveur=User.objects.get(phone=phone_receveur,active=True,document_verif=True)
 					if receveur is not None:
-						serializer=UserSerializer(receveur)
-						return Response({'receveur':serializer.data,'frais':vraifrai})
+						trans=VerificationTransaction.objects.create(user=envoyeur,somme=somme,
+		commission=frais,phone_destinataire=phone_receveur,nature_transaction="envoi direct")
+						return Response({'id':trans.id,'nom':receveur.nom,'prenom':receveur.prenom})
+
+#Transaction 
+class GetRansactionEnvoiDirect(APIView):
+	def post(self,request):
+		id=request.data.get('id')
+		trans=VerificationTransaction.objects.get(id=id,nature_transaction="envoi direct")
+		if trans.user==request.user:
+			receveur=User.objects.get(phone=trans.phone_destinataire)
+			userserial=UserSerializer(receveur)
+			transserial=VerificationTransactionSerializer(trans)
+			return Response({'receveur':userserial.data,'transaction':transserial.data})
+
+
 		
 #L envoi direct en lui meme			
-class EnvoyerDirect(APIView):
-	def post(self,request):
+class EnvoyerDirect(ModelViewSet):
+	queryset =VerificationTransaction.objects.all()
+	serializer_class=VerificationTransactionSerializer
+	@action(methods=["put"], detail=False, url_path='envoyerdirectement')
+	def envoi_direct(self,request,*args,**kwargs):
 		envoyeur=request.user
-		if envoyeur.active==True:
-			data=request.data
+		if envoyeur.active==True and envoyeur.document_verif==True:
+			id=request.data.get('id')
 			admina=User.objects.get(phone='+79649642176')
-			phone_receveur=data['phone_receveur']
-			receveur=User.objects.get(phone=phone_receveur,active=True)
-			if receveur is not None:
-				somm=decimal.Decimal(data['somme'])
-				frais=somm/decimal.Decimal(100)
-				vraifrai=round(frais,2)
-				somme=vraifrai+decimal.Decimal(somm)
-				if envoyeur.solde>=somme:
-					serializer=EnvoirSerializer(data=data)
-					if serializer.is_valid():
-						envoyeur.solde=envoyeur.solde-somme
+			trans=VerificationTransaction.objects.get(id=id,nature_transaction="envoi direct")
+			if trans.user==envoyeur:
+				receveur=User.objects.get(phone=trans.phone_destinataire,active=True,document_verif=True)
+				if receveur is not None:
+					montant=trans.somme+trans.commission
+					if envoyeur.solde>=montant:
+						envoyeur.solde-=montant
 						envoyeur.save()
-						receveur.solde=receveur.solde+somm
+						receveur.solde+=trans.somme
 						receveur.save()
-						admina.solde=admina.solde+vraifrai
+						admina.solde+=trans.commission
 						admina.save()
-						EnvoiDirectNotif(envoyeur,receveur,somm,vraifrai)
-						serializer.save(envoyeur=envoyeur)
-						return Response(serializer.data)
+						EnvoiDirectNotif(envoyeur,receveur,trans.somme,trans.commission,admina)
+						env=Envoi.objects.create(envoyeur=envoyeur,phone_receveur=receveur.phone,somme=trans.somme
+						,commission=trans.commission)
+						trans.delete()
+						return Response({'id':env.id,'nature':"envoi direct"})
+	@action(methods=["put"], detail=False, url_path='annulationenvoi')
+	def anunuler_direct(self,request,*args,**kwargs):
+		id=request.data.get('id')
+		trans=VerificationTransaction.objects.get(id=id)
+		trans.delete()
+		return Response({'success':'annulation'})
+
+							
 
 #Recu d envoi direct 
 class RecuDirect(APIView):
@@ -199,10 +239,9 @@ class RecuDirect(APIView):
 		envoi=Envoi.objects.get(id=id)
 		receveur=User.objects.get(phone=envoi.phone_receveur)
 		receveurserializer=UserSerializer(receveur)
-		commission=round(envoi.somme/100,2)
 		if request.user==envoi.envoyeur:
 			serializer=EnvoirSerializer(envoi)
-			return Response({'envoi':serializer.data,'commission':commission,'receveur':receveurserializer.data})
+			return Response({'envoi':serializer.data,'receveur':receveurserializer.data})
 
 
 
@@ -211,38 +250,56 @@ class VerificationSomme(APIView):
 	def post(self,request):
 		envoyeur=request.user
 		data=request.data
-		if envoyeur.active==True:
-			somme=decimal.Decimal(data['somme'])
-			frais=somme/decimal.Decimal(100)
-			vraifrai=round(frais,2)
-			debit=somme+vraifrai
+		if envoyeur.active==True and envoyeur.document_verif==True:
+			getcontext().prec=2
+			somme=Decimal(data['somme'])
+			frais=somme/Decimal(100)
+			debit=somme+frais
+			phone_receveur=data['phone']
+			nom=data['nom']
 			if envoyeur.solde>=debit:
-				return Response({vraifrai})
+				trans=VerificationTransaction.objects.create(user=envoyeur,somme=somme,
+					commission=frais,phone_destinataire=phone_receveur,
+					nature_transaction="envoi via code",
+			nom_complet_destinataire=nom)
+				return Response({'id':trans.id,'nom':trans.nom_complet_destinataire})
 
-
-#Envoi avec code directement sur son compte			
-class EnvoiViaCodeDirect(APIView):
+class GetRansactionCode(APIView):
 	def post(self,request):
+		id=request.data.get('id')
+		trans=VerificationTransaction.objects.get(id=id,nature_transaction="envoi via code")
+		if trans.user==request.user:
+			serializer=VerificationTransactionSerializer(trans)
+			return Response(serializer.data)
+
+
+#Envoi avec code directement a partir de son compte			
+class EnvoiViaCodeDirect(ModelViewSet):
+	queryset =VerificationTransaction.objects.all()
+	serializer_class=VerificationTransactionSerializer
+
+	@action(methods=["put"], detail=False, url_path='envoyerviacodedirectement')
+	def envoi_code(self,request,*args,**kwargs):
 		data=request.data
 		client=request.user
-		if client.active==True:
-			somm=decimal.Decimal(data['somme'])
-			receveur=data['Nom_complet_du_receveur']
-			frais=somm/decimal.Decimal(100)
-			vraifrai=round(frais,2)
-			code=randint(100000000,999999999)
-			admina=User.objects.get(phone='+79649642176')
-			somme=decimal.Decimal(somm)+vraifrai
-			if client.solde>=somme:
-				serializer=ViaCodeSerializer(data=data)
-				if serializer.is_valid():
-					client.solde=client.solde-somme
+		if client.active==True and client.document_verif==True:
+			id=data['id']
+			trans=VerificationTransaction.objects.get(id=id,nature_transaction="envoi via code")
+			if trans.user==client:
+				code=randint(100000000,999999999)
+				admina=User.objects.get(phone='+79649642176')
+				debit=trans.somme+trans.commission
+				if client.solde>=debit:
+					viacod=ViaCode.objects.create(code=code,
+			Nom_complet_du_receveur=trans.nom_complet_destinataire ,client=client
+			,somme=trans.somme,commission=trans.commission)
+					client.solde-=debit
 					client.save()
-					admina.solde=admina.solde+vraifrai
+					admina.solde+=trans.commission
 					admina.save()
-					EnvoiViaCodeNotif(client,somm,code,vraifrai,receveur)
-					serializer.save(client=client,active=True,code=code)
-					return Response(serializer.data)
+					EnvoiViaCodeNotif(client,trans.somme,code,trans.commission,trans.nom_complet_destinataire,admina)
+					trans.delete()
+					return Response({'id':viacod.id,'nature':"envoi via code"})
 
 #Recu envoi par code
 class RecuCode(APIView):
@@ -250,10 +307,9 @@ class RecuCode(APIView):
 		data=request.data
 		id=data['id']
 		envoicode=ViaCode.objects.get(id=id)
-		commission=round(envoicode.somme/100,2)
 		if request.user==envoicode.client:
 			serializer=ViaCodeSerializer(envoicode)
-			return Response({'envoi':serializer.data,'commission':commission})
+			return Response(serializer.data)
 
 #un recu specifique
 class RecuDonne(APIView):
@@ -301,7 +357,25 @@ class VerificationPhonePourPayement(APIView):
 				id=verif.id
 				#CodePayementEGaalgui(client,code) 
 				return Response({'id':id})
+
+
+#Suppression de code en cas d annulation
+class RemoveCode(ModelViewSet):
+	permission_classes = [permissions.AllowAny]
+	queryset = User.objects.filter(active=True)
+	serializer_class=UserSerializer
+	@action(methods=["put"], detail=False, url_path='coderemove')
+	def remove_code(self,request,*args,**kwargs):
+		id=self.request.data.get('id')
+		verif=PhoneVerificationCode.objects.get(id=id)
+		if verif is not None:
+			verif.delete()
+			return Response({'suppression':'success'})
 	
+
+
+
+
 #Payement gaalguishop		
 class Payementgaalgui(APIView):
 	permission_classes = [permissions.AllowAny]
@@ -333,6 +407,8 @@ class Payementgaalgui(APIView):
 					admina.save()
 					pay.active=True
 					pay.save()
+					verif.active=False
+					verif.save()
 					return Response({'payement':'payement succes'})
 		    #return Response(serializer.errors)
 
@@ -345,97 +421,37 @@ class AnnulationCommandeGaalgui(APIView):
 	def post(self,request):
 		data=request.data
 		phone=data['phone']
-		montant=data['montant']
-		livraison=data['livraison']
-		commission=data['commission']
+		getcontext().prec=2
+		montant=Decimal(data['montant'])
+		nom=data['nom']
+		livraison=Decimal(data['livraison'])
+		commission=Decimal(data['commission'])
 		client=User.objects.get(phone=phone)
 		client.solde+=montant
 		client.save()
 		admina=User.objects.get(phone='+79649642176')
 		admina.solde-=(livraison+commission)
 		admina.save()
-		#Notification au user sur le remboursement
+		AnnulationCommandeGaalguiShopNotif(client,somme,nom)
 		return Response({'message':'Annulation a succes'})
 
 
 #Les dernieres transactions 
 class LastMessages(APIView):
-	def get(self,request):
+	def get(self,request): 
 		messages=Messages.objects.filter(user=request.user).order_by('-id')[:5]
 		serializer=MessageSerializer(messages,many=True)
 		return Response(serializer.data)
 
-#Historique d envoi direct
-class HistoryEnvoiDirect(APIView):
-	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='envoi direct',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
-		return Response(serializer.data)
 
-#Historique d envoi par code
-class HistoryEnvoiCode(APIView):
+class GetPub(APIView):
+	permission_classes=[permissions.AllowAny]
 	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='envoi via code',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
-		return Response(serializer.data) 
-
-#Historique de reception
-class HistoryReception(APIView):
-	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='reception',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
-		return Response(serializer.data)
-
-#Historique de payement
-class HistoryPayement(APIView):
-	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='payement',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
-		return Response(serializer.data)
-
-#Historique de depot
-class HistoryDepot(APIView):
-	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='depot',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
-		return Response(serializer.data)
-
-#Historique de retrait
-class HistoryRetrait(APIView):
-	def get(self,request):
-		messages=Messages.objects.filter(nature_transaction='retrait',user=request.user).order_by('-id')
-		serializer=MessageSerializer(messages,many=True)
+		pub=TendancePub.objects.filter(active=True).order_by('-id')
+		serializer=TendancePubSerializer(pub,many=True)
 		return Response(serializer.data)
 
 
-#Verification du numero de telephone en cas de moification des donnees 
-class VerificationPhone(APIView):
-	def post(self,request):
-		#phone=request.data['phone']
-		client=request.user
-		code=randint(10000,99999)
-		verif=PhoneVerificationCode.objects.create(user=client,code=code,active=True)
-		serializer=PhoneVerificationCodeSerializer(verif)
-		#SMS send a phone
-		return Response(serializer.data)
-
-#Modification des donnees personnelles 
-class ModificationCredential(ModelViewSet):
-	queryset = User.objects.filter(active=True)
-	serializer_class=UserSerializer
-	@action(methods=["put"], detail=False, url_path='modif')
-	def modif_cred(self,request,*args,**kwargs):
-		user=self.request.user
-		data=request.data
-		id=data['id']
-		code=int(data['code'])
-		verif=PhoneVerificationCode.objects.get(id=id)
-		if verif.code==code:
-			user.nom=data['nom']
-			user.phone=data['phone']
-			user.prenom=data['prenom']
-			user.save()
-			return Response({'message':'donnee bien modifiee'})
 
 
 

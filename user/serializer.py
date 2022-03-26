@@ -12,11 +12,10 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 	@classmethod
 	def get_token(cls, user):
-		token = super().get_token(user)
-		token['name'] = user.room
-		token['sub']=user.group
-		token['admin']=user.business
-		return token
+		if user.active==True:
+			token = super().get_token(user)
+			token['name'] = user.room
+			return token
 
 class UserSerializer(serializers.ModelSerializer):
 	phone = PhoneNumberField()
@@ -144,6 +143,23 @@ class PayementGaalguiSerializer(serializers.ModelSerializer):
 
 	def get_user(self,obj):
 		return UserSerializer(obj.user).data
+
+
+class VerificationTransactionSerializer(serializers.ModelSerializer):
+	user=serializers.SerializerMethodField()
+	class Meta:
+		model=VerificationTransaction
+		fields='__all__'
+
+	def get_user(self,obj):
+		return UserSerializer(obj.user).data
+
+
+class TendancePubSerializer(serializers.ModelSerializer):
+	class Meta:
+		model=TendancePub
+		fields='__all__'
+
 
 
 
