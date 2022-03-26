@@ -92,29 +92,29 @@ ASGI_APPLICATION = "gaalguimoney.asgi.application"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 
-DATABASES = {
+'''DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'gaalguimoney',
     }
-}
-'''DATABASES = {
+}'''
+DATABASES = {
     'default': {
-       # 'ENGINE': 'django.db.backends.postgresql',
-        'USER':'wfomubydvzbmxr',
-        'NAME': 'd34ljmhq80llqb',
-        'PASSWORD':'5f22f50287594b463d43c2285311883cc03e64ad83d5aa081659c6b209f052b3',
-        'HOST':'ec2-3-228-236-221.compute-1.amazonaws.com',
+        'ENGINE': 'django.db.backends.postgresql',
+        'USER':'ggpcjccnrsrdek',
+        'NAME': 'de0i4bfvd2barg',
+        'PASSWORD':'6034b2ff1a5fd13c4e48e45bf44105707788b18e5e5ca8dbcb78280e97728c2d',
+        'HOST':'ec2-44-194-92-192.compute-1.amazonaws.com',
         'PORT':'5432'
     } 
-}'''
+}
 
-#db_from_env = dj_database_url.config(conn_max_age=600)
-#DATABASES['default'] = dj_database_url.config(default='postgres://wfomubydvzbmxr:5f22f50287594b463d43c2285311883cc03e64ad83d5aa081659c6b209f052b3@ec2-3-228-236-221.compute-1.amazonaws.com:5432/d34ljmhq80llqb')
-#DATABASES['default'].update(db_from_env)
+db_from_env = dj_database_url.config(conn_max_age=600)
+DATABASES['default'] = dj_database_url.config(default='postgres://ggpcjccnrsrdek:6034b2ff1a5fd13c4e48e45bf44105707788b18e5e5ca8dbcb78280e97728c2d@ec2-44-194-92-192.compute-1.amazonaws.com:5432/de0i4bfvd2barg')
+DATABASES['default'].update(db_from_env)
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
-#CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -162,14 +162,14 @@ MEDIA_URL ='/images/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS = [
+'''CORS_ALLOWED_ORIGINS = [
 
     "http://localhost:3000",
     "http://localhost:8100",
     "https://gaalguishop.herokuapp.com"
     
 ]
-
+'''
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

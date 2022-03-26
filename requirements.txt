@@ -13,8 +13,10 @@ cryptography==36.0.1
 daphne==3.0.2
 dj-database-url==0.5.0
 Django==4.0.3
+django-autoslug==1.9.8
 django-cors-headers==3.11.0
 django-phonenumber-field==6.1.0
+django-qr-code==3.0.0
 django-rest-framework==0.1.0
 djangorestframework==3.13.1
 djangorestframework-simplejwt==5.1.0
@@ -27,12 +29,14 @@ msgpack==1.0.3
 phonenumbers==8.12.44
 Pillow==9.0.1
 psycopg==3.0.9
+psycopg2==2.9.3
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycparser==2.21
 PyJWT==2.3.0
 pyOpenSSL==22.0.0
 pytz==2021.3
+segno==1.4.1
 service-identity==21.1.0
 six==1.16.0
 sqlparse==0.4.2
