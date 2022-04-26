@@ -97,20 +97,21 @@ ASGI_APPLICATION = "gaalguimoney.asgi.application"
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'gaalguimoney',
     }
-}'''
+}
+'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'USER':'ggpcjccnrsrdek',
-        'NAME': 'de0i4bfvd2barg',
-        'PASSWORD':'6034b2ff1a5fd13c4e48e45bf44105707788b18e5e5ca8dbcb78280e97728c2d',
-        'HOST':'ec2-44-194-92-192.compute-1.amazonaws.com',
+        'USER':'ableyaiiwlgtzk',
+        'NAME': 'd5pgeq9fdkk8jl',
+        'PASSWORD':'017e1e399408b9fa2b0084c4c91126c975e8576749bfc9a3110264330ab3f9a5',
+        'HOST':'ec2-18-214-134-226.compute-1.amazonaws.com',
         'PORT':'5432'
     } 
 }
 
 db_from_env = dj_database_url.config(conn_max_age=600)
-DATABASES['default'] = dj_database_url.config(default='postgres://ggpcjccnrsrdek:6034b2ff1a5fd13c4e48e45bf44105707788b18e5e5ca8dbcb78280e97728c2d@ec2-44-194-92-192.compute-1.amazonaws.com:5432/de0i4bfvd2barg')
+DATABASES['default'] = dj_database_url.config(default='postgres://ableyaiiwlgtzk:017e1e399408b9fa2b0084c4c91126c975e8576749bfc9a3110264330ab3f9a5@ec2-18-214-134-226.compute-1.amazonaws.com:5432/d5pgeq9fdkk8jl')
 DATABASES['default'].update(db_from_env)
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators

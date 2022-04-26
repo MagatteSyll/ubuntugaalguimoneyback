@@ -171,6 +171,11 @@ class Messages(models.Model):
 	commission=models.DecimalField( max_digits=19, decimal_places=2,default=0)
 	beneficiaire=models.CharField(max_length=200,null=True,blank=True)
 	code=models.PositiveIntegerField(null=True,blank=True)
+	total=models.DecimalField( max_digits=19, decimal_places=2,default=0)
+	donnateur=models.CharField(max_length=255,null=True,blank=True)
+	logo=models.ImageField(upload_to='static/images',blank=True)
+	should_notify=models.BooleanField(default=False)
+	is_trans=models.BooleanField(default=True)
 
 
 class VerificationTransaction(models.Model):

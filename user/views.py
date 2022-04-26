@@ -170,7 +170,7 @@ class VerificationCredentialsEnvoi(APIView):
 		if envoyeur.active==True and envoyeur.document_verif==True:
 			data=request.data
 			phone_receveur=data['phone']
-			getcontext().prec=2
+			getcontext().prec=2 
 			somme=Decimal(data['somme'])
 			frais=somme/Decimal(100)
 			debit=somme+frais
@@ -179,7 +179,7 @@ class VerificationCredentialsEnvoi(APIView):
 					receveur=User.objects.get(phone=phone_receveur,active=True,document_verif=True)
 					if receveur is not None:
 						trans=VerificationTransaction.objects.create(user=envoyeur,somme=somme,
-		commission=frais,phone_destinataire=phone_receveur,nature_transaction="envoi direct")
+		commission=frais,phone_destinataire=phone_receveur,nature_transaction="envoi direct",total=debit)
 						return Response({'id':trans.id,'nom':receveur.nom,'prenom':receveur.prenom})
 
 #Transaction 
@@ -209,15 +209,14 @@ class EnvoyerDirect(ModelViewSet):
 			if trans.user==envoyeur:
 				receveur=User.objects.get(phone=trans.phone_destinataire,active=True,document_verif=True)
 				if receveur is not None:
-					montant=trans.somme+trans.commission
-					if envoyeur.solde>=montant:
-						envoyeur.solde-=montant
+					if envoyeur.solde>=trans.total:
+						envoyeur.solde-=trans.total
 						envoyeur.save()
 						receveur.solde+=trans.somme
 						receveur.save()
 						admina.solde+=trans.commission
 						admina.save()
-						EnvoiDirectNotif(envoyeur,receveur,trans.somme,trans.commission,admina)
+						EnvoiDirectNotif(envoyeur,receveur,trans.somme,trans.commission,admina,trans.total)
 						env=Envoi.objects.create(envoyeur=envoyeur,phone_receveur=receveur.phone,somme=trans.somme
 						,commission=trans.commission)
 						trans.delete()
@@ -261,7 +260,7 @@ class VerificationSomme(APIView):
 				trans=VerificationTransaction.objects.create(user=envoyeur,somme=somme,
 					commission=frais,phone_destinataire=phone_receveur,
 					nature_transaction="envoi via code",
-			nom_complet_destinataire=nom)
+			nom_complet_destinataire=nom,total=debit)
 				return Response({'id':trans.id,'nom':trans.nom_complet_destinataire})
 
 class GetRansactionCode(APIView):
@@ -288,16 +287,15 @@ class EnvoiViaCodeDirect(ModelViewSet):
 			if trans.user==client:
 				code=randint(100000000,999999999)
 				admina=User.objects.get(phone='+79649642176')
-				debit=trans.somme+trans.commission
-				if client.solde>=debit:
+				if client.solde>=trans.total:
 					viacod=ViaCode.objects.create(code=code,
 			Nom_complet_du_receveur=trans.nom_complet_destinataire ,client=client
 			,somme=trans.somme,commission=trans.commission)
-					client.solde-=debit
+					client.solde-=trans.total
 					client.save()
 					admina.solde+=trans.commission
 					admina.save()
-					EnvoiViaCodeNotif(client,trans.somme,code,trans.commission,trans.nom_complet_destinataire,admina)
+					EnvoiViaCodeNotif(client,trans.somme,code,trans.commission,trans.nom_complet_destinataire,admina,trans.total)
 					trans.delete()
 					return Response({'id':viacod.id,'nature':"envoi via code"})
 
@@ -316,7 +314,7 @@ class RecuDonne(APIView):
 	def post(self,request):
 		data=request.data
 		id=data['id']
-		message=Messages.objects.get(id=id)
+		message=Messages.objects.get(id=id) 
 		if request.user==message.user:
 			serializer=MessageSerializer(message)
 			return Response(serializer.data)
@@ -325,7 +323,7 @@ class RecuDonne(APIView):
 #les transactions de l utilisateur
 class UserMessages(APIView):
 	def get(self,request):
-		messages=Messages.objects.filter(user=request.user).order_by('-id')
+		messages=Messages.objects.filter(user=request.user,is_trans=True).order_by('-id')
 		serializer=MessageSerializer(messages,many=True)
 		return Response(serializer.data)
 
@@ -439,7 +437,7 @@ class AnnulationCommandeGaalgui(APIView):
 #Les dernieres transactions 
 class LastMessages(APIView):
 	def get(self,request): 
-		messages=Messages.objects.filter(user=request.user).order_by('-id')[:5]
+		messages=Messages.objects.filter(user=request.user,is_trans=True).order_by('-id')[:5]
 		serializer=MessageSerializer(messages,many=True)
 		return Response(serializer.data)
 
